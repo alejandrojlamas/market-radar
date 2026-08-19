@@ -10,6 +10,7 @@ import {
   corsOptions,
   mutationGuard,
   rejectUnknownOrigins,
+  requireLoopbackHost,
 } from '../server/httpSecurity'
 
 const trustedOrigin = 'http://127.0.0.1:5174'
@@ -53,6 +54,13 @@ test('buildAllowedOrigins uses exact loopback defaults and rejects paths', () =>
     ],
   )
   assert.throws(() => buildAllowedOrigins('https://example.test/app', 8797), /sin ruta/)
+})
+
+test('the API cannot be bound to a non-loopback interface', () => {
+  assert.equal(requireLoopbackHost(undefined), '127.0.0.1')
+  assert.equal(requireLoopbackHost(' ::1 '), '::1')
+  assert.throws(() => requireLoopbackHost('0.0.0.0'), /solo admite/)
+  assert.throws(() => requireLoopbackHost('192.168.1.8'), /solo admite/)
 })
 
 test('an unlisted Origin is rejected instead of receiving permissive CORS', async () => {

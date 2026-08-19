@@ -5,7 +5,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EQUITY_CATALOG, FALLBACK_NEWS, type EquityProfile } from './catalog'
 import { getDb, readProviderStatuses } from './db'
-import { buildAllowedOrigins, corsOptions, mutationGuard, rejectUnknownOrigins } from './httpSecurity'
+import {
+  buildAllowedOrigins,
+  corsOptions,
+  mutationGuard,
+  rejectUnknownOrigins,
+  requireLoopbackHost,
+} from './httpSecurity'
 import { assets } from './providers'
 import { API_SETTING_KEYS, apiSettingsStatus, clearApiSetting, saveApiSettings, type ApiSettingKey } from './settings'
 import {
@@ -58,7 +64,7 @@ type ScreenerRow = EquityProfile &
   }
 
 const PORT = Number(process.env.MERCADORADAR_PORT ?? process.env.PORT ?? 8787)
-const HOST = process.env.MERCADORADAR_HOST?.trim() || '127.0.0.1'
+const HOST = requireLoopbackHost(process.env.MERCADORADAR_HOST)
 const LIVE_DATA = process.env.MERCADORADAR_LIVE !== 'false'
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 MercadoRadar/1.0'

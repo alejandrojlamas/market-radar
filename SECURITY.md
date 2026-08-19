@@ -19,7 +19,7 @@ No incluyas API keys reales. Revoca y rota cualquier credencial que haya quedado
 
 ## Modelo operativo
 
-MercadoRadar está diseñado para una sola persona y escucha en `127.0.0.1` por defecto. No incluye cuentas de usuario ni autorización propia.
+MercadoRadar está diseñado para una sola persona y solo permite escuchar en `127.0.0.1` o `::1`. No incluye cuentas de usuario ni autorización propia.
 
 - Mantén el servidor en loopback.
 - Para acceso remoto, usa un proxy con TLS y autenticación delante de la aplicación.

@@ -6,6 +6,15 @@ export const MUTATION_HEADER_VALUE = 'same-origin'
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:'])
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1'])
+
+export function requireLoopbackHost(rawValue: string | undefined) {
+  const host = rawValue?.trim() || '127.0.0.1'
+  if (!LOOPBACK_HOSTS.has(host)) {
+    throw new Error('MERCADORADAR_HOST solo admite 127.0.0.1 o ::1')
+  }
+  return host
+}
 
 function parseOrigin(value: string) {
   const candidate = value.trim()

@@ -78,7 +78,7 @@ También puedes usar:
 | `MERCADORADAR_DB_PATH` | Ruta de la SQLite local | `./data/mercadoradar.sqlite` |
 | `MERCADORADAR_LIVE` | Usa `false` para forzar datos demo en el dashboard principal | `true` |
 | `MERCADORADAR_PORT` | Puerto del servidor | `8787` |
-| `MERCADORADAR_HOST` | Interfaz de escucha | `127.0.0.1` |
+| `MERCADORADAR_HOST` | Interfaz de escucha (`127.0.0.1` o `::1`) | `127.0.0.1` |
 | `MERCADORADAR_ALLOWED_ORIGINS` | Orígenes web exactos, separados por coma | Orígenes loopback de API y Vite |
 
 La pantalla de configuración puede guardar claves en SQLite para desarrollo local. Esos valores no se devuelven al navegador, pero quedan almacenados sin cifrar: usa variables de entorno para un entorno serio y nunca versiones `data/`.
@@ -95,7 +95,7 @@ MERCADORADAR_PORT=8797 \
 npm run serve
 ```
 
-El proxy debe autenticar cada solicitud y reenviarla a `http://127.0.0.1:8797`. Una VPN o red privada reduce exposición, pero no sustituye autenticación. No enlaces el proceso a `0.0.0.0` ni abras el puerto directamente a Internet. Consulta [SECURITY.md](SECURITY.md) para el modelo operativo y el canal de reporte.
+El proxy debe autenticar cada solicitud y reenviarla a `http://127.0.0.1:8797`. Una VPN o red privada reduce exposición, pero no sustituye autenticación. El servidor rechaza interfaces que no sean loopback; no abras el puerto directamente a Internet. Consulta [SECURITY.md](SECURITY.md) para el modelo operativo y el canal de reporte.
 
 ## Calidad
 
