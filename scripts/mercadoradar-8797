@@ -1,0 +1,9 @@
+#!/bin/zsh
+set -e
+
+SCRIPT_DIR="${0:A:h}"
+ROOT="${SCRIPT_DIR:h}"
+
+cd "${ROOT}"
+export MERCADORADAR_PORT="${MERCADORADAR_PORT:-8797}"
+exec npm run serve
