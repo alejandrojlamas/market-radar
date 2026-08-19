@@ -68,7 +68,7 @@ export type ScreenerRow = {
   performance3M: number
   performance52W: number
   score: number
-  signal: 'Alta prioridad' | 'Vigilar' | 'Neutral' | 'Riesgo alto'
+  signal: 'High priority' | 'Watch' | 'Neutral' | 'High risk'
 }
 
 export type AssetProfile = {

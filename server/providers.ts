@@ -1,11 +1,12 @@
 import { EQUITY_CATALOG, type AssetCurrency, type AssetMarket, type EquityProfile } from './catalog'
 import { readBars, upsertBars, writeProviderStatus } from './db'
 import type { AssetProfile, DataProvider, DataSourceKind, MarketHistory, OhlcvBar } from './domain'
+import { readEnvironment } from './env'
 import { configuredValue } from './settings'
 
 const USER_AGENT =
-  process.env.MERCADORADAR_USER_AGENT ??
-  'MercadoRadar/1.0 personal-research contact=local'
+  readEnvironment('MARKET_RADAR_USER_AGENT', 'MERCADORADAR_USER_AGENT') ??
+  'MarketRadar/1.0 personal-research contact=local'
 
 function round(value: number, decimals = 2) {
   return Number.isFinite(value) ? Number(value.toFixed(decimals)) : 0
@@ -140,7 +141,7 @@ function makeHistory(symbol: string, provider: DataProvider, bars: OhlcvBar[], w
 
 async function fetchPolygonHistory(profile: EquityProfile) {
   const apiKey = configuredValue('POLYGON_API_KEY')
-  if (!apiKey) throw new Error('POLYGON_API_KEY no configurada')
+  if (!apiKey) throw new Error('POLYGON_API_KEY is not configured')
   const symbol = providerSymbol(profile, 'polygon')
   const end = new Date()
   const start = new Date()
@@ -165,13 +166,13 @@ async function fetchPolygonHistory(profile: EquityProfile) {
     close: round(item.c),
     volume: Math.round(item.v ?? 0),
   }))
-  if (!bars.length) throw new Error('Polygon sin barras')
+  if (!bars.length) throw new Error('Polygon returned no price bars')
   return bars
 }
 
 async function fetchTwelveDataHistory(profile: EquityProfile) {
   const apiKey = configuredValue('TWELVEDATA_API_KEY')
-  if (!apiKey) throw new Error('TWELVEDATA_API_KEY no configurada')
+  if (!apiKey) throw new Error('TWELVEDATA_API_KEY is not configured')
   const url = new URL('https://api.twelvedata.com/time_series')
   url.searchParams.set('symbol', providerSymbol(profile, 'twelvedata'))
   url.searchParams.set('interval', '1day')
@@ -192,13 +193,13 @@ async function fetchTwelveDataHistory(profile: EquityProfile) {
     close: round(Number(item.close)),
     volume: Math.round(Number(item.volume ?? 0)),
   }))
-  if (!bars.length) throw new Error('Twelve Data sin barras')
+  if (!bars.length) throw new Error('Twelve Data returned no price bars')
   return bars
 }
 
 async function fetchAlphaVantageHistory(profile: EquityProfile) {
   const apiKey = configuredValue('ALPHAVANTAGE_API_KEY')
-  if (!apiKey) throw new Error('ALPHAVANTAGE_API_KEY no configurada')
+  if (!apiKey) throw new Error('ALPHAVANTAGE_API_KEY is not configured')
   const url = new URL('https://www.alphavantage.co/query')
   url.searchParams.set('function', 'TIME_SERIES_DAILY')
   url.searchParams.set('symbol', providerSymbol(profile, 'alphavantage'))
@@ -220,7 +221,7 @@ async function fetchAlphaVantageHistory(profile: EquityProfile) {
     close: round(Number(item['4. close'])),
     volume: Math.round(Number(item['5. volume'] ?? 0)),
   }))
-  if (!bars.length) throw new Error('Alpha Vantage sin barras')
+  if (!bars.length) throw new Error('Alpha Vantage returned no price bars')
   return bars
 }
 
@@ -254,7 +255,7 @@ async function fetchStooqHistory(profile: EquityProfile) {
   url.searchParams.set('i', 'd')
   const csv = await fetchText(url.toString())
   const bars = parseCsvRows(csv)
-  if (!bars.length) throw new Error('Stooq sin barras')
+  if (!bars.length) throw new Error('Stooq returned no price bars')
   return bars
 }
 
@@ -292,7 +293,7 @@ async function fetchYahooHistory(profile: EquityProfile) {
     close: round(Number(quote?.close?.[index] ?? 0)),
     volume: Math.round(Number(quote?.volume?.[index] ?? 0)),
   }))
-  if (!bars.length) throw new Error('Yahoo sin barras')
+  if (!bars.length) throw new Error('Yahoo returned no price bars')
   return bars
 }
 
@@ -367,7 +368,7 @@ export async function getMarketHistory(profile: EquityProfile, options: { useCac
         provider,
         bars,
         provider === 'yahoo-chart' || provider === 'demo'
-          ? 'Fuente fallback; no debe usarse como unica base de Buy/Hold/Sell.'
+          ? 'Fallback source; do not use it as the sole basis for Buy/Hold/Sell decisions.'
           : undefined,
       )
     } catch (error) {

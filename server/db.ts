@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type {
@@ -13,16 +13,43 @@ import type {
   SignalAction,
   SignalRun,
 } from './domain'
+import { readEnvironment } from './env'
 
 let database: DatabaseSync | null = null
 
 function dbPath() {
-  return path.resolve(process.env.MERCADORADAR_DB_PATH ?? './data/mercadoradar.sqlite')
+  const configured = readEnvironment('MARKET_RADAR_DB_PATH', 'MERCADORADAR_DB_PATH')
+  if (configured) return path.resolve(configured)
+
+  const currentPath = path.resolve('./data/market-radar.sqlite')
+  const legacyPath = path.resolve('./data/mercadoradar.sqlite')
+  migrateLegacyDatabaseFiles(legacyPath, currentPath)
+  return currentPath
 }
 
 function ensureDatabaseDir(filePath: string) {
   const directory = path.dirname(filePath)
   if (!existsSync(directory)) mkdirSync(directory, { recursive: true })
+}
+
+export function migrateLegacyDatabaseFiles(legacyPath: string, currentPath: string) {
+  if (existsSync(currentPath) || !existsSync(legacyPath)) return false
+  ensureDatabaseDir(currentPath)
+
+  const suffixes = ['', '-wal', '-shm'].filter((suffix) => existsSync(`${legacyPath}${suffix}`))
+  const temporaryPaths = suffixes.map((suffix) => `${currentPath}${suffix}.migrating`)
+
+  try {
+    suffixes.forEach((suffix, index) => copyFileSync(`${legacyPath}${suffix}`, temporaryPaths[index]))
+    suffixes
+      .filter(Boolean)
+      .forEach((suffix) => renameSync(`${currentPath}${suffix}.migrating`, `${currentPath}${suffix}`))
+    renameSync(`${currentPath}.migrating`, currentPath)
+    return true
+  } catch (error) {
+    for (const temporaryPath of temporaryPaths) rmSync(temporaryPath, { force: true })
+    throw error
+  }
 }
 
 export function getDb() {

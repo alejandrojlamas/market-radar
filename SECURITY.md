@@ -1,38 +1,38 @@
-# Política de seguridad
+# Security policy
 
-## Alcance soportado
+## Supported version
 
-Se mantiene la rama principal actual. Las copias antiguas o modificadas deben actualizarse antes de evaluar un reporte.
+The current default branch is supported. Update older or modified copies before evaluating a report.
 
-## Reportar una vulnerabilidad
+## Reporting a vulnerability
 
-Usa el reporte privado de vulnerabilidades de GitHub si está habilitado en el repositorio. Si no lo está, solicita un canal privado al responsable sin publicar detalles del exploit, datos personales, credenciales ni contenido de una base local en un issue público.
+Use GitHub private vulnerability reporting when it is enabled for this repository. Otherwise, request a private channel from the maintainer instead of publishing exploit details, personal data, credentials, or local database content in a public issue.
 
-Incluye, cuando sea posible:
+When possible, include:
 
-- versión o commit afectado;
-- impacto y prerrequisitos;
-- pasos mínimos de reproducción con datos ficticios;
-- mitigación sugerida.
+- the affected version or commit;
+- impact and prerequisites;
+- minimal reproduction steps using synthetic data;
+- a suggested mitigation.
 
-No incluyas API keys reales. Revoca y rota cualquier credencial que haya quedado expuesta.
+Do not include real API keys. Revoke and rotate any credential that may have been exposed.
 
-## Modelo operativo
+## Operating model
 
-MercadoRadar está diseñado para una sola persona y solo permite escuchar en `127.0.0.1` o `::1`. No incluye cuentas de usuario ni autorización propia.
+Market Radar is a single-user, local-first research application. It only permits binding to `127.0.0.1` or `::1` and does not provide user accounts or its own authorization layer.
 
-- Mantén el servidor en loopback.
-- Para acceso remoto, usa un proxy con TLS y autenticación delante de la aplicación.
-- Define `MERCADORADAR_ALLOWED_ORIGINS` con orígenes completos y exactos; no se admiten comodines.
-- Conserva la cabecera `x-mercadoradar-request: same-origin` en clientes que realicen mutaciones.
-- Prefiere variables de entorno o el gestor de secretos del entorno para las claves de proveedores.
-- No publiques `data/mercadoradar.sqlite`, sus archivos WAL/SHM, logs ni exportaciones de cartera.
+- Keep the API bound to loopback.
+- For remote access, place a TLS-enabled, authenticated proxy in front of the application.
+- Set `MARKET_RADAR_ALLOWED_ORIGINS` to complete, exact origins; wildcards are not accepted.
+- Preserve the `x-market-radar-request: same-origin` header in clients that perform mutations.
+- Prefer environment variables or the host's secret manager for provider credentials.
+- Never publish `data/market-radar.sqlite`, its WAL/SHM files, logs, or portfolio exports.
 
-La base local puede contener credenciales, cartera y diario de decisiones sin cifrado a nivel de aplicación. Protege los permisos y el cifrado del equipo anfitrión, y elimina ese estado antes de compartir una copia del proyecto.
+The local database may contain unencrypted credentials, portfolio positions, and decision-journal entries. Protect the host with appropriate file permissions and full-disk encryption, and remove runtime state before sharing a project copy.
 
-## Dependencias y validación
+## Dependencies and validation
 
-Antes de desplegar cambios, ejecuta:
+Before deploying changes, run:
 
 ```bash
 npm ci
@@ -41,4 +41,4 @@ npm test
 npm run build
 ```
 
-Revisa también alertas de dependencias y evita ejecutar builds de contribuciones no confiables con secretos presentes en el entorno.
+Review dependency alerts as well, and do not run untrusted contribution builds with secrets present in the environment.

@@ -16,11 +16,11 @@ async function readJson<T>(url: string, init?: RequestInit): Promise<T> {
   const method = init?.method?.toUpperCase() ?? 'GET'
   const headers = new Headers(init?.headers)
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
-    headers.set('x-mercadoradar-request', 'same-origin')
+    headers.set('x-market-radar-request', 'same-origin')
   }
   const response = await fetch(url, { ...init, headers, credentials: 'same-origin' })
   if (!response.ok) {
-    throw new Error(`Error ${response.status} cargando ${url}`)
+    throw new Error(`Request ${response.status} while loading ${url}`)
   }
   return response.json() as Promise<T>
 }

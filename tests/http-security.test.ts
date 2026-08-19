@@ -53,14 +53,14 @@ test('buildAllowedOrigins uses exact loopback defaults and rejects paths', () =>
       'http://localhost:5174',
     ],
   )
-  assert.throws(() => buildAllowedOrigins('https://example.test/app', 8797), /sin ruta/)
+  assert.throws(() => buildAllowedOrigins('https://example.test/app', 8797), /pathless/)
 })
 
 test('the API cannot be bound to a non-loopback interface', () => {
   assert.equal(requireLoopbackHost(undefined), '127.0.0.1')
   assert.equal(requireLoopbackHost(' ::1 '), '::1')
-  assert.throws(() => requireLoopbackHost('0.0.0.0'), /solo admite/)
-  assert.throws(() => requireLoopbackHost('192.168.1.8'), /solo admite/)
+  assert.throws(() => requireLoopbackHost('0.0.0.0'), /only accepts/)
+  assert.throws(() => requireLoopbackHost('192.168.1.8'), /only accepts/)
 })
 
 test('an unlisted Origin is rejected instead of receiving permissive CORS', async () => {
@@ -70,7 +70,7 @@ test('an unlisted Origin is rejected instead of receiving permissive CORS', asyn
 
   assert.equal(response.status, 403)
   assert.equal(response.headers.get('access-control-allow-origin'), null)
-  assert.deepEqual(await response.json(), { error: 'Origin no permitido' })
+  assert.deepEqual(await response.json(), { error: 'Origin not allowed' })
 })
 
 test('preflight reflects only an explicitly allowed Origin', async () => {
@@ -96,7 +96,7 @@ test('mutations require the non-simple request header', async () => {
   })
 
   assert.equal(response.status, 403)
-  assert.deepEqual(await response.json(), { error: `Falta la cabecera ${MUTATION_HEADER}` })
+  assert.deepEqual(await response.json(), { error: `Missing ${MUTATION_HEADER} header` })
 })
 
 test('trusted JSON mutations with the guard header are accepted', async () => {
@@ -115,6 +115,21 @@ test('trusted JSON mutations with the guard header are accepted', async () => {
   assert.deepEqual(await response.json(), { ok: true })
 })
 
+test('legacy clients retain mutation access during the header migration', async () => {
+  const response = await fetch(`${baseUrl}/resource`, {
+    method: 'POST',
+    headers: {
+      origin: trustedOrigin,
+      'content-type': 'application/json',
+      'x-mercadoradar-request': MUTATION_HEADER_VALUE,
+    },
+    body: '{}',
+  })
+
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), { ok: true })
+})
+
 test('cross-site mutations without an Origin are rejected', async () => {
   const response = await fetch(`${baseUrl}/resource`, {
     method: 'POST',
@@ -127,7 +142,7 @@ test('cross-site mutations without an Origin are rejected', async () => {
   })
 
   assert.equal(response.status, 403)
-  assert.deepEqual(await response.json(), { error: 'Solicitud cross-site rechazada' })
+  assert.deepEqual(await response.json(), { error: 'Cross-site request rejected' })
 })
 
 test('mutations with a body reject form-compatible content types', async () => {

@@ -1,103 +1,114 @@
-# MercadoRadar
+# Market Radar
 
-MercadoRadar es un _workbench_ financiero local que reúne exploración de mercado, señales explicables, seguimiento de cartera y práctica de decisiones en una sola interfaz. Está construido para demostrar un producto de datos de extremo a extremo: ingesta con degradación controlada, análisis reproducible, persistencia local y una experiencia React adaptable a escritorio y móvil.
+Market Radar is a local-first applied-AI lab for explainable market research, portfolio context, and decision journaling. It demonstrates an end-to-end data product: resilient ingestion, reproducible signal scoring, optional DeepSeek narratives, local persistence, and a responsive React workspace.
 
-> Las señales, puntuaciones y narrativas son educativas. No constituyen asesoría financiera ni una recomendación de inversión.
+> Signals, scores, and AI narratives are educational research outputs. They are not financial advice or investment recommendations.
 
-## Vista del producto
+## Product preview
 
-| Escritorio | Móvil |
+| Desktop | Mobile |
 | --- | --- |
-| ![Dashboard de MercadoRadar en escritorio](output/playwright/desktop-final.png) | ![MercadoRadar adaptado a móvil](output/playwright/mobile-final.png) |
+| ![Market Radar desktop dashboard](output/playwright/desktop-final.png) | ![Market Radar mobile dashboard](output/playwright/mobile-final.png) |
 
-Las capturas contienen únicamente símbolos bursátiles y datos de mercado públicos o de demostración; no incluyen cuentas, posiciones ni identificadores personales.
+The screenshots contain only public or synthetic market data. They do not include accounts, real positions, credentials, or personal identifiers.
 
-## Qué resuelve
+## What it explores
 
-- Consolida watchlist, alertas, noticias, históricos y un screener técnico/fundamental.
-- Produce señales con evidencia, nivel de confianza, riesgos y trazabilidad de la fuente.
-- Degrada a fuentes gratuitas o datos demo cuando un proveedor no está disponible, marcando el resultado que no es apto para decisión.
-- Importa una cartera por CSV, mantiene un diario de decisiones y ofrece paper trading en el navegador.
-- Permite comparar proveedores de mercado de EE. UU. y BMV sin acoplar la UI a uno solo.
+- Combines a watchlist, alerts, news, price history, and technical/fundamental screening.
+- Produces explainable signals with evidence, confidence, visible risks, and provider lineage.
+- Falls back to free or deterministic demo data when a provider is unavailable, and blocks decision-grade output when quality is insufficient.
+- Imports a portfolio from CSV, maintains an auditable decision journal, and supports browser-based paper trading.
+- Compares US and BMV data providers without coupling the interface to a single vendor.
+- Generates optional structured narratives with DeepSeek while retaining a deterministic local fallback.
 
-## Arquitectura
+## Architecture
 
 ```text
 React 19 + TypeScript + Vite
-        │ API same-origin
+        │ same-origin API
         ▼
-Express 5 ── proveedores (Polygon, Twelve Data, Alpha Vantage,
-    │         Stooq, Yahoo y fallback demo)
+Express 5 ── providers (Polygon, Twelve Data, Alpha Vantage,
+    │         Stooq, Yahoo, and deterministic demo fallback)
     ▼
-SQLite local (cache, señales, cartera, decisiones y configuración)
+Local SQLite (cache, signals, portfolio, decisions, and settings)
 ```
 
-El estado de paper trading, alertas y watchlist vive en `localStorage`. El servidor crea y migra automáticamente una base limpia en `data/mercadoradar.sqlite`; ese directorio es estado de ejecución y está excluido de Git.
+Paper trading, alerts, and watchlist state live in `localStorage`. The server creates and migrates the local database at `data/market-radar.sqlite`; runtime data is excluded from Git.
 
-## Inicio rápido
+## Quick start
 
-Requisitos: Node.js 24 y npm.
+Requirements: Node.js 24 and npm.
 
 ```bash
-git clone <URL_DEL_REPOSITORIO>
-cd mercadoradar
+git clone https://github.com/alejandrojlamas/market-radar.git
+cd market-radar
 npm ci
 npm run dev
 ```
 
-Abre `http://127.0.0.1:5174`. Vite reenvía `/api` al servidor local en `127.0.0.1:8787`.
+Open `http://127.0.0.1:5174`. Vite proxies `/api` to the local API at `127.0.0.1:8787`.
 
-Para ejecutar el build de producción:
+To run the production build locally:
 
 ```bash
 npm run build
-MERCADORADAR_PORT=8797 npm run serve
+MARKET_RADAR_PORT=8797 npm run serve
 ```
 
-La aplicación queda disponible en `http://127.0.0.1:8797`.
+The application is then available at `http://127.0.0.1:8797`.
 
-## Datos demo y datos en vivo
+## Demo and live data
 
-No se necesita una API key para explorar el producto: Stooq, Yahoo y el generador demo funcionan como fallbacks. Las fuentes externas pueden aplicar límites, cambiar su disponibilidad o entregar datos retrasados; MercadoRadar muestra la procedencia y bloquea señales de decisión cuando la calidad no alcanza el umbral requerido.
+No API key is required to explore the product: Stooq, Yahoo, and the deterministic demo generator provide fallbacks. External sources may enforce rate limits, become unavailable, or return delayed data. Market Radar displays provenance and refuses to present a decision-grade signal when the quality gate is not met.
 
-Para proveedores autenticados, define las credenciales en el entorno del proceso. Esta es la opción recomendada porque tiene prioridad sobre cualquier valor local:
+For authenticated providers, set credentials in the process environment. Environment variables take precedence over values saved through the local interface:
 
 ```bash
-export POLYGON_API_KEY='<TU_API_KEY>'
-export TWELVEDATA_API_KEY='<TU_API_KEY>'
-export ALPHAVANTAGE_API_KEY='<TU_API_KEY>'
-export DEEPSEEK_API_KEY='<TU_API_KEY>'
+export POLYGON_API_KEY='<YOUR_API_KEY>'
+export TWELVEDATA_API_KEY='<YOUR_API_KEY>'
+export ALPHAVANTAGE_API_KEY='<YOUR_API_KEY>'
+export DEEPSEEK_API_KEY='<YOUR_API_KEY>'
 export DEEPSEEK_MODEL='deepseek-v4-pro'
 npm run serve
 ```
 
-También puedes usar:
+Additional settings:
 
-| Variable | Propósito | Valor por defecto |
+| Variable | Purpose | Default |
 | --- | --- | --- |
-| `MERCADORADAR_DB_PATH` | Ruta de la SQLite local | `./data/mercadoradar.sqlite` |
-| `MERCADORADAR_LIVE` | Usa `false` para forzar datos demo en el dashboard principal | `true` |
-| `MERCADORADAR_PORT` | Puerto del servidor | `8787` |
-| `MERCADORADAR_HOST` | Interfaz de escucha (`127.0.0.1` o `::1`) | `127.0.0.1` |
-| `MERCADORADAR_ALLOWED_ORIGINS` | Orígenes web exactos, separados por coma | Orígenes loopback de API y Vite |
+| `MARKET_RADAR_DB_PATH` | Local SQLite path | `./data/market-radar.sqlite` |
+| `MARKET_RADAR_LIVE` | Set to `false` to force demo data in the main dashboard | `true` |
+| `MARKET_RADAR_PORT` | API and production server port | `8787` |
+| `MARKET_RADAR_HOST` | Listen interface (`127.0.0.1` or `::1`) | `127.0.0.1` |
+| `MARKET_RADAR_ALLOWED_ORIGINS` | Comma-separated exact web origins | API and Vite loopback origins |
+| `MARKET_RADAR_USER_AGENT` | Outbound market-data user agent | Project-specific local identifier |
 
-La pantalla de configuración puede guardar claves en SQLite para desarrollo local. Esos valores no se devuelven al navegador, pero quedan almacenados sin cifrar: usa variables de entorno para un entorno serio y nunca versiones `data/`.
+The settings screen can save keys in SQLite for local development. Those values are not returned to the browser, but they remain unencrypted on disk. Prefer environment variables for serious use and never commit `data/`.
 
-## Seguridad y acceso remoto
+## Safe upgrade from MercadoRadar
 
-El servidor y Vite escuchan únicamente en loopback de forma predeterminada. CORS acepta una lista exacta de orígenes, cualquier `Origin` no listado se rechaza y las mutaciones requieren una cabecera no simple para reducir el riesgo de CSRF.
+The rebrand preserves local state:
 
-Si necesitas acceso remoto, mantén `MERCADORADAR_HOST=127.0.0.1` y publica la aplicación detrás de un proxy con TLS y autenticación. Configura el origen público explícitamente, por ejemplo:
+- On first start, `data/mercadoradar.sqlite` and any WAL/SHM companions are copied to `data/market-radar.sqlite` when the new database does not yet exist. The legacy files remain as a backup.
+- Existing `mercadoradar.*` browser keys are moved to the `market-radar.*` namespace after valid JSON is read.
+- New `MARKET_RADAR_*` environment variables take precedence; the previous `MERCADORADAR_*` names remain accepted as a compatibility fallback.
+- New clients send `x-market-radar-request: same-origin`; the API temporarily accepts the legacy mutation header for existing clients.
+
+## Security and remote access
+
+The API and Vite bind to loopback by default. CORS uses an exact origin allowlist, unknown `Origin` values are rejected, and mutations require a non-simple same-origin header to reduce CSRF risk.
+
+For remote access, keep `MARKET_RADAR_HOST=127.0.0.1` and place the application behind a TLS-enabled, authenticated proxy. Configure its public origin explicitly:
 
 ```bash
-MERCADORADAR_ALLOWED_ORIGINS='https://radar.example.internal' \
-MERCADORADAR_PORT=8797 \
+MARKET_RADAR_ALLOWED_ORIGINS='https://radar.example.internal' \
+MARKET_RADAR_PORT=8797 \
 npm run serve
 ```
 
-El proxy debe autenticar cada solicitud y reenviarla a `http://127.0.0.1:8797`. Una VPN o red privada reduce exposición, pero no sustituye autenticación. El servidor rechaza interfaces que no sean loopback; no abras el puerto directamente a Internet. Consulta [SECURITY.md](SECURITY.md) para el modelo operativo y el canal de reporte.
+The proxy must authenticate every request and forward to `http://127.0.0.1:8797`. A VPN or private network reduces exposure but does not replace authentication. The server rejects non-loopback interfaces, so do not expose the port directly to the Internet. See [SECURITY.md](SECURITY.md) for the operating model and reporting channel.
 
-## Calidad
+## Quality gates
 
 ```bash
 npm run lint
@@ -105,22 +116,22 @@ npm test
 npm run build
 ```
 
-La suite cubre el motor de señales, importación de cartera, bootstrap/migración de SQLite y controles de Origin, CORS y CSRF. GitHub Actions ejecuta estas validaciones en cada push y pull request.
+The suite covers the signal engine, portfolio import, SQLite bootstrap and legacy migration, localStorage migration, and Origin/CORS/CSRF controls. GitHub Actions runs these checks on every push and pull request.
 
-## Estructura del proyecto
+## Project structure
 
 ```text
-src/                 interfaz React, configuración y cliente API
-server/              API Express, proveedores, señales y persistencia
-tests/               pruebas unitarias y de seguridad HTTP
-output/playwright/   capturas de referencia del producto
-scripts/             launchers locales portables para macOS
+src/                 React interface, configuration, and API client
+server/              Express API, providers, signals, and persistence
+tests/               unit, migration, and HTTP security tests
+output/playwright/   privacy-safe product reference screenshots
+scripts/             portable local launchers for macOS
 ```
 
-## Limitaciones conocidas
+## Known limitations
 
-- No es una plataforma de ejecución de órdenes ni consulta cuentas de brokerage.
-- Los proveedores gratuitos pueden ser incompletos, retrasados o limitar solicitudes.
-- El scoring y el backtest son herramientas exploratorias; no modelan comisiones, deslizamiento, impuestos ni la situación del usuario.
-- SQLite y `localStorage` son apropiados para uso individual, no para un despliegue multiusuario.
-- La aplicación no implementa autenticación propia; cualquier publicación remota requiere un proxy autenticado.
+- This is not an order-execution platform and does not connect to brokerage accounts.
+- Free providers may be incomplete, delayed, unavailable, or rate-limited.
+- Scoring and backtesting are exploratory; they do not model fees, slippage, taxes, or a user's circumstances.
+- SQLite and `localStorage` suit single-user research, not a multi-user deployment.
+- The application has no built-in authentication; any remote publication requires an authenticated proxy.

@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EQUITY_CATALOG, FALLBACK_NEWS, type EquityProfile } from './catalog'
 import { getDb, readProviderStatuses } from './db'
+import { readEnvironment } from './env'
 import {
   buildAllowedOrigins,
   corsOptions,
@@ -60,17 +61,20 @@ type ScreenerRow = EquityProfile &
     performance3M: number
     performance52W: number
     score: number
-    signal: 'Alta prioridad' | 'Vigilar' | 'Neutral' | 'Riesgo alto'
+    signal: 'High priority' | 'Watch' | 'Neutral' | 'High risk'
   }
 
-const PORT = Number(process.env.MERCADORADAR_PORT ?? process.env.PORT ?? 8787)
-const HOST = requireLoopbackHost(process.env.MERCADORADAR_HOST)
-const LIVE_DATA = process.env.MERCADORADAR_LIVE !== 'false'
+const PORT = Number(readEnvironment('MARKET_RADAR_PORT', 'MERCADORADAR_PORT') ?? process.env.PORT ?? 8787)
+const HOST = requireLoopbackHost(readEnvironment('MARKET_RADAR_HOST', 'MERCADORADAR_HOST'))
+const LIVE_DATA = readEnvironment('MARKET_RADAR_LIVE', 'MERCADORADAR_LIVE') !== 'false'
 const USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 MercadoRadar/1.0'
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 MarketRadar/1.0'
 
 const app = express()
-const allowedOrigins = buildAllowedOrigins(process.env.MERCADORADAR_ALLOWED_ORIGINS, PORT)
+const allowedOrigins = buildAllowedOrigins(
+  readEnvironment('MARKET_RADAR_ALLOWED_ORIGINS', 'MERCADORADAR_ALLOWED_ORIGINS'),
+  PORT,
+)
 app.use(rejectUnknownOrigins(allowedOrigins))
 app.use(cors(corsOptions(allowedOrigins)))
 app.use(mutationGuard(allowedOrigins))
@@ -349,11 +353,11 @@ function scoreRow(profile: EquityProfile, quote: Quote, history: Candle[]): Scre
   const score = round(clamp(50 + technical + fundamentals + sentiment - riskPenalty, 1, 99), 0)
   const signal =
     score >= 74
-      ? 'Alta prioridad'
+      ? 'High priority'
       : score >= 62
-        ? 'Vigilar'
+        ? 'Watch'
         : score <= 42
-          ? 'Riesgo alto'
+          ? 'High risk'
           : 'Neutral'
 
   return {
@@ -410,7 +414,7 @@ function marketStatus() {
   const open = !['Sat', 'Sun'].includes(weekday) && minutes >= 570 && minutes < 960
   return {
     open,
-    label: open ? 'Mercado abierto' : 'Mercado cerrado',
+    label: open ? 'Market open' : 'Market closed',
     timezone: 'America/New_York',
   }
 }
@@ -441,7 +445,7 @@ function parseRss(xml: string, symbol?: string) {
     symbol: symbol ?? inferSymbol(readTag(match[1], 'title')),
     summary: readTag(match[1], 'description'),
     url: readTag(match[1], 'link'),
-    category: symbol ? 'Ticker' : 'Mercados',
+    category: symbol ? 'Ticker' : 'Markets',
     publishedAt: readTag(match[1], 'pubDate'),
   }))
 }
@@ -496,7 +500,7 @@ function breadth(rows: ScreenerRow[]) {
 }
 
 app.get('/api/health', (_request, response) => {
-  response.json({ ok: true, name: 'MercadoRadar', liveData: LIVE_DATA, status: marketStatus() })
+  response.json({ ok: true, name: 'Market Radar', liveData: LIVE_DATA, status: marketStatus() })
 })
 
 app.get('/api/snapshot', async (_request, response) => {
@@ -522,7 +526,7 @@ app.get('/api/history/:symbol', async (request, response) => {
   const symbol = request.params.symbol.toUpperCase()
   const profile = EQUITY_CATALOG.find((item) => item.symbol === symbol)
   if (!profile) {
-    response.status(404).json({ error: `No se encontro ${symbol}` })
+    response.status(404).json({ error: `${symbol} was not found` })
     return
   }
   const range = String(request.query.range ?? '1y')
@@ -564,7 +568,7 @@ app.post('/api/settings/apis', (request, response) => {
 app.delete('/api/settings/apis/:key', (request, response) => {
   const key = request.params.key as ApiSettingKey
   if (!API_SETTING_KEYS.includes(key)) {
-    response.status(400).json({ error: 'Configuracion no soportada' })
+    response.status(400).json({ error: 'Unsupported setting' })
     return
   }
   response.json(clearApiSetting(key))
@@ -574,7 +578,7 @@ app.get('/api/signals', async (_request, response) => {
   try {
     response.json({ generatedAt: new Date().toISOString(), items: await listSignals() })
   } catch (error) {
-    response.status(500).json({ error: error instanceof Error ? error.message : 'No se pudieron cargar señales' })
+    response.status(500).json({ error: error instanceof Error ? error.message : 'Signals could not be loaded' })
   }
 })
 
@@ -583,12 +587,12 @@ app.get('/api/signals/:symbol', async (request, response) => {
     const includeNarrative = request.query.narrative === 'true'
     const signal = await getSignal(request.params.symbol, includeNarrative)
     if (!signal) {
-      response.status(404).json({ error: `No se encontro ${request.params.symbol}` })
+      response.status(404).json({ error: `${request.params.symbol} was not found` })
       return
     }
     response.json(signal)
   } catch (error) {
-    response.status(500).json({ error: error instanceof Error ? error.message : 'No se pudo cargar la señal' })
+    response.status(500).json({ error: error instanceof Error ? error.message : 'The signal could not be loaded' })
   }
 })
 
@@ -596,7 +600,7 @@ app.post('/api/signals/refresh', async (_request, response) => {
   try {
     response.json({ generatedAt: new Date().toISOString(), items: await refreshSignals() })
   } catch (error) {
-    response.status(500).json({ error: error instanceof Error ? error.message : 'No se pudieron refrescar señales' })
+    response.status(500).json({ error: error instanceof Error ? error.message : 'Signals could not be refreshed' })
   }
 })
 
@@ -610,7 +614,7 @@ app.post('/api/portfolio/import', (request, response) => {
     const positions = importPortfolioCsv(csv)
     response.json(saveImportedPortfolio(positions))
   } catch (error) {
-    response.status(400).json({ error: error instanceof Error ? error.message : 'CSV invalido' })
+    response.status(400).json({ error: error instanceof Error ? error.message : 'Invalid CSV' })
   }
 })
 
@@ -630,7 +634,7 @@ app.post('/api/decisions', (request, response) => {
       reviewDate?: string
     }
     if (!body.symbol || !body.userDecision) {
-      response.status(400).json({ error: 'symbol y userDecision son requeridos' })
+      response.status(400).json({ error: 'symbol and userDecision are required' })
       return
     }
     response.json(createDecision({
@@ -642,7 +646,7 @@ app.post('/api/decisions', (request, response) => {
       reviewDate: body.reviewDate,
     }))
   } catch (error) {
-    response.status(400).json({ error: error instanceof Error ? error.message : 'No se pudo guardar decision' })
+    response.status(400).json({ error: error instanceof Error ? error.message : 'The decision could not be saved' })
   }
 })
 
@@ -657,5 +661,5 @@ if (existsSync(distPath)) {
 
 getDb()
 app.listen(PORT, HOST, () => {
-  console.log(`MercadoRadar listo en http://${HOST}:${PORT}`)
+  console.log(`Market Radar is ready at http://${HOST}:${PORT}`)
 })

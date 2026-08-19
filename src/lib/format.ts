@@ -1,5 +1,5 @@
 export function usd(value: number) {
-  return new Intl.NumberFormat('es-MX', {
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: value >= 1000 ? 0 : 2,
@@ -7,7 +7,7 @@ export function usd(value: number) {
 }
 
 export function compact(value: number) {
-  return new Intl.NumberFormat('es-MX', {
+  return new Intl.NumberFormat('en-US', {
     notation: 'compact',
     maximumFractionDigits: 1,
   }).format(value)
@@ -18,7 +18,7 @@ export function percent(value: number, digits = 2) {
 }
 
 export function number(value: number, digits = 2) {
-  return new Intl.NumberFormat('es-MX', {
+  return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: digits,
   }).format(value)
 }
@@ -28,10 +28,10 @@ export function timeAgo(value: string) {
   if (Number.isNaN(date.getTime())) return value
   const diff = Date.now() - date.getTime()
   const minutes = Math.max(1, Math.round(diff / 60000))
-  if (minutes < 60) return `hace ${minutes} min`
+  if (minutes < 60) return `${minutes} min ago`
   const hours = Math.round(minutes / 60)
-  if (hours < 24) return `hace ${hours} h`
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(date)
+  if (hours < 24) return `${hours} hr ago`
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(date)
 }
 
 export function sourceLabel(source: string) {
@@ -41,5 +41,5 @@ export function sourceLabel(source: string) {
   if (source === 'stooq') return 'Stooq'
   if (source === 'yahoo-chart') return 'Yahoo Chart'
   if (source === 'nasdaq-rss') return 'Nasdaq RSS'
-  return 'Demo local'
+  return 'Local demo'
 }

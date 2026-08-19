@@ -54,6 +54,7 @@ import {
   DEFAULT_WATCHLIST,
   INDEX_SYMBOLS,
   JOURNAL_PREVIEW_LIMIT,
+  LEGACY_STORAGE_KEYS,
   MOVERS_PREVIEW_LIMIT,
   NEWS_PREVIEW_LIMIT,
   ORDER_SIDE_OPTIONS,
@@ -72,7 +73,7 @@ import {
   type TabId,
 } from './config/appConfig'
 import { compact, number, percent, sourceLabel, timeAgo, usd } from './lib/format'
-import { readStorage, writeStorage } from './lib/storage'
+import { readMigratedStorage, writeStorage } from './lib/storage'
 import {
   fetchDataHealth,
   clearApiSetting,
@@ -108,19 +109,19 @@ import type {
 } from './types'
 
 const tabIcons: Record<TabId, typeof Activity> = {
-  mercado: Activity,
+  market: Activity,
   screener: SlidersHorizontal,
-  noticias: Newspaper,
-  decisiones: ClipboardList,
+  news: Newspaper,
+  decisions: ClipboardList,
   apis: KeyRound,
-  portafolio: Wallet,
+  portfolio: Wallet,
   paper: CircleDollarSign,
 }
 
 const chartModeIcons: Record<ChartMode, typeof ChartLine> = {
-  linea: ChartLine,
-  velas: LineChart,
-  barras: ChartColumn,
+  line: ChartLine,
+  candles: LineChart,
+  bars: ChartColumn,
 }
 
 function App() {
@@ -129,7 +130,7 @@ function App() {
   const [symbolNews, setSymbolNews] = useState<NewsItem[]>([])
   const [selectedSymbol, setSelectedSymbol] = useState(DEFAULT_SYMBOL)
   const [activeTab, setActiveTab] = useState<TabId>(DEFAULT_ACTIVE_TAB)
-  const [chartMode, setChartMode] = useState<ChartMode>('linea')
+  const [chartMode, setChartMode] = useState<ChartMode>('line')
   const [range, setRange] = useState(DEFAULT_CHART_RANGE)
   const [query, setQuery] = useState('')
   const [sector, setSector] = useState(ALL_FILTER_LABEL)
@@ -137,10 +138,14 @@ function App() {
   const [priceMax, setPriceMax] = useState(DEFAULT_PRICE_MAX)
   const [rsiMax, setRsiMax] = useState(DEFAULT_RSI_MAX)
   const [watchlist, setWatchlist] = useState(() =>
-    readStorage<string[]>(STORAGE_KEYS.watchlist, DEFAULT_WATCHLIST),
+    readMigratedStorage<string[]>(STORAGE_KEYS.watchlist, LEGACY_STORAGE_KEYS.watchlist, DEFAULT_WATCHLIST),
   )
-  const [alerts, setAlerts] = useState(() => readStorage<AlertRule[]>(STORAGE_KEYS.alerts, createDefaultAlerts()))
-  const [paper, setPaper] = useState(() => readStorage<PaperState>(STORAGE_KEYS.paper, createDefaultPaperState()))
+  const [alerts, setAlerts] = useState(() =>
+    readMigratedStorage<AlertRule[]>(STORAGE_KEYS.alerts, LEGACY_STORAGE_KEYS.alerts, createDefaultAlerts()),
+  )
+  const [paper, setPaper] = useState(() =>
+    readMigratedStorage<PaperState>(STORAGE_KEYS.paper, LEGACY_STORAGE_KEYS.paper, createDefaultPaperState()),
+  )
   const [signals, setSignals] = useState<SignalRun[]>([])
   const [selectedSignal, setSelectedSignal] = useState<SignalRun | null>(null)
   const [dataHealth, setDataHealth] = useState<ProviderStatus[]>([])
@@ -222,7 +227,7 @@ function App() {
         setSelectedSymbol(data.rows[0]?.symbol ?? DEFAULT_SYMBOL)
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo cargar el mercado')
+      setError(reason instanceof Error ? reason.message : 'The market could not be loaded')
     } finally {
       setLoading(false)
     }
@@ -245,7 +250,7 @@ function App() {
       setSelectedSignal(signal)
       setApiSettings(settings.items)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo cargar Decision Desk')
+      setError(reason instanceof Error ? reason.message : 'Decision Desk could not be loaded')
     }
   }
 
@@ -256,7 +261,7 @@ function App() {
       setSignals(refreshed.items)
       await loadProductState(selectedSymbol, true)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudieron refrescar señales')
+      setError(reason instanceof Error ? reason.message : 'Signals could not be refreshed')
     } finally {
       setProductBusy(false)
     }
@@ -274,7 +279,7 @@ function App() {
         })
         .catch((reason: unknown) => {
           if (disposed) return
-          setError(reason instanceof Error ? reason.message : 'No se pudo cargar el mercado')
+          setError(reason instanceof Error ? reason.message : 'The market could not be loaded')
         })
         .finally(() => {
           if (!disposed) setLoading(false)
@@ -291,7 +296,7 @@ function App() {
         })
         .catch((reason: unknown) => {
           if (disposed) return
-          setError(reason instanceof Error ? reason.message : 'No se pudo cargar Decision Desk')
+          setError(reason instanceof Error ? reason.message : 'Decision Desk could not be loaded')
         })
     }
     run()
@@ -323,7 +328,7 @@ function App() {
     let disposed = false
     async function loadDecisionContext() {
       try {
-        const [signal, journal] = await Promise.all([fetchSignal(selectedSymbol, activeTab === 'decisiones'), fetchDecisions(selectedSymbol)])
+        const [signal, journal] = await Promise.all([fetchSignal(selectedSymbol, activeTab === 'decisions'), fetchDecisions(selectedSymbol)])
         if (disposed) return
         setSelectedSignal(signal)
         setDecisionJournal((current) => {
@@ -427,7 +432,7 @@ function App() {
       setDecisionInvalidation('')
       setDecisionReviewDate('')
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo guardar la decision')
+      setError(reason instanceof Error ? reason.message : 'The decision could not be saved')
     } finally {
       setProductBusy(false)
     }
@@ -439,7 +444,7 @@ function App() {
       const nextPortfolio = await importPortfolio(csvText)
       setRealPortfolio(nextPortfolio)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo importar la cartera')
+      setError(reason instanceof Error ? reason.message : 'The portfolio could not be imported')
     } finally {
       setProductBusy(false)
     }
@@ -455,7 +460,7 @@ function App() {
       setApiForm(nextForm)
       await loadProductState(selectedSymbol, false)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo guardar la configuracion')
+      setError(reason instanceof Error ? reason.message : 'The settings could not be saved')
     } finally {
       setProductBusy(false)
     }
@@ -467,7 +472,7 @@ function App() {
       const next = await clearApiSetting(key)
       setApiSettings(next.items)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No se pudo borrar la configuracion')
+      setError(reason instanceof Error ? reason.message : 'The setting could not be deleted')
     } finally {
       setProductBusy(false)
     }
@@ -498,7 +503,7 @@ function App() {
 
         <div className="market-pill" data-open={snapshot?.marketStatus.open ? 'true' : 'false'}>
           <Wifi size={16} />
-          <span>{snapshot?.marketStatus.label ?? 'Mercado'}</span>
+          <span>{snapshot?.marketStatus.label ?? 'Market'}</span>
         </div>
 
         <div className="search-box">
@@ -507,7 +512,7 @@ function App() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={APP_COPY.searchPlaceholder}
-            aria-label="Buscar acciones"
+            aria-label="Search stocks"
           />
           {query.trim() ? (
             <div className="search-results">
@@ -522,12 +527,12 @@ function App() {
           ) : null}
         </div>
 
-        <button className="icon-button" type="button" onClick={() => void loadSnapshot()} aria-label="Actualizar">
+        <button className="icon-button" type="button" onClick={() => void loadSnapshot()} aria-label="Refresh">
           <RefreshCw size={18} />
         </button>
       </header>
 
-      <nav className="tabs" aria-label="Secciones">
+      <nav className="tabs" aria-label="Sections">
         {TAB_DEFINITIONS.map((tab) => {
           const Icon = tabIcons[tab.id]
           return (
@@ -548,7 +553,7 @@ function App() {
 
       <section className="workspace">
         <aside className="left-rail">
-          <Panel title="Watchlist" action={`${watchRows.length} activos`}>
+          <Panel title="Watchlist" action={`${watchRows.length} assets`}>
             <div className="index-strip">
               {rows
                 .filter((row) => INDEX_SYMBOLS.includes(row.symbol))
@@ -583,7 +588,7 @@ function App() {
             </div>
           </Panel>
 
-          <Panel title="Alertas" action={`${alertRows.filter((alert) => alert.triggered).length} activas`}>
+          <Panel title="Alerts" action={`${alertRows.filter((alert) => alert.triggered).length} active`}>
             <div className="alert-list">
               {alertRows.slice(0, ALERT_PREVIEW_LIMIT).map((alert) => (
                 <div className={alert.triggered ? 'alert-row triggered' : 'alert-row'} key={alert.id}>
@@ -591,14 +596,14 @@ function App() {
                   <span>
                     <strong>{alert.symbol}</strong>
                     <small>
-                      {alert.side === 'above' ? 'Arriba de' : 'Debajo de'} {usd(alert.price)}
+                      {alert.side === 'above' ? 'Above' : 'Below'} {usd(alert.price)}
                     </small>
                   </span>
                   <button
                     className="ghost-icon"
                     type="button"
                     onClick={() => setAlerts((current) => current.filter((item) => item.id !== alert.id))}
-                    aria-label={`Eliminar alerta ${alert.symbol}`}
+                    aria-label={`Delete ${alert.symbol} alert`}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -609,7 +614,7 @@ function App() {
         </aside>
 
         <section className="main-stage">
-          {activeTab === 'mercado' ? (
+          {activeTab === 'market' ? (
             <MarketView
               rows={rows}
               selected={selected}
@@ -646,11 +651,11 @@ function App() {
             />
           ) : null}
 
-          {activeTab === 'noticias' ? (
+          {activeTab === 'news' ? (
             <NewsView marketNews={snapshot?.news ?? []} symbolNews={symbolNews} selected={selected} />
           ) : null}
 
-          {activeTab === 'decisiones' ? (
+          {activeTab === 'decisions' ? (
             <DecisionDeskView
               signal={selectedSignal}
               signals={signals}
@@ -684,7 +689,7 @@ function App() {
             />
           ) : null}
 
-          {activeTab === 'portafolio' ? (
+          {activeTab === 'portfolio' ? (
             <PortfolioView
               portfolio={portfolio}
               cash={paper.cash}
@@ -713,20 +718,20 @@ function App() {
         </section>
 
         <aside className="right-rail">
-          <Panel title="Idea educativa" action={selected?.signal ?? 'Radar'}>
+          <Panel title="Educational idea" action={selected?.signal ?? 'Radar'}>
             {selected ? <IdeaCard row={selected} /> : null}
           </Panel>
-          <Panel title="Decision real" action={selectedSignal?.action ?? 'No Signal'}>
+          <Panel title="Decision signal" action={selectedSignal?.action ?? 'No Signal'}>
             <SignalMini signal={selectedSignal} />
           </Panel>
-          <Panel title="Noticias" action={sourceLabel(snapshot?.newsSource ?? 'demo')}>
+          <Panel title="News" action={sourceLabel(snapshot?.newsSource ?? 'demo')}>
             <NewsList items={[...symbolNews, ...(snapshot?.news ?? [])].slice(0, NEWS_PREVIEW_LIMIT)} compactMode />
           </Panel>
           <Panel title="Paper trading" action={usd(portfolio.equity)}>
             <div className="paper-mini">
-              <Metric label="Efectivo" value={usd(paper.cash)} />
-              <Metric label="Invertido" value={usd(portfolio.marketValue)} />
-              <Metric label="Posiciones" value={`${portfolio.positions.length}`} />
+              <Metric label="Cash" value={usd(paper.cash)} />
+              <Metric label="Invested" value={usd(portfolio.marketValue)} />
+              <Metric label="Positions" value={`${portfolio.positions.length}`} />
             </div>
           </Panel>
         </aside>
@@ -789,7 +794,7 @@ function MarketView({
         <div className="symbol-header">
           <Avatar symbol={selected.symbol} large />
           <div>
-            <span className="section-label">Stock, ETF y crypto watch</span>
+            <span className="section-label">Stocks, ETFs, and market indexes</span>
             <h1>{selected.symbol}</h1>
             <p>{selected.name}</p>
           </div>
@@ -825,11 +830,11 @@ function MarketView({
         <div className="action-row">
           <button type="button" className="primary-button" onClick={() => toggleWatch(selected.symbol)}>
             <Star size={17} />
-            {watchlist.includes(selected.symbol) ? 'En watchlist' : 'Agregar watchlist'}
+            {watchlist.includes(selected.symbol) ? 'In watchlist' : 'Add to watchlist'}
           </button>
           <button type="button" className="secondary-button" onClick={addAlert}>
             <Bell size={17} />
-            Crear alerta
+            Create alert
           </button>
         </div>
       </section>
@@ -837,12 +842,12 @@ function MarketView({
       <div className="metric-grid">
         <Metric label="RSI" value={`${number(selected.rsi, 1)}`} tone={selected.rsi > 70 ? 'bad' : selected.rsi > 45 ? 'good' : 'neutral'} />
         <Metric label="SMA 20" value={usd(selected.sma20)} />
-        <Metric label="Volumen" value={compact(selected.volume)} />
+        <Metric label="Volume" value={compact(selected.volume)} />
         <Metric label="Score" value={`${selected.score}/100`} tone={selected.score >= 70 ? 'good' : 'neutral'} />
       </div>
 
       <div className="split-grid">
-        <Panel title="AI Trade Ideas" action="educativo">
+        <Panel title="AI research ideas" action="educational">
           <div className="idea-grid">
             {ideas.map((row) => (
               <button key={row.symbol} className="idea-button" type="button" onClick={() => selectSymbol(row.symbol)}>
@@ -857,7 +862,7 @@ function MarketView({
           </div>
         </Panel>
 
-        <Panel title="Market movers" action="hoy">
+        <Panel title="Market movers" action="today">
           <div className="mover-list">
             {movers.map((row) => (
               <button key={row.symbol} type="button" onClick={() => selectSymbol(row.symbol)}>
@@ -874,7 +879,7 @@ function MarketView({
         <BreadthChart breadth={breadth} />
       </Panel>
 
-      <Panel title="Ultimas noticias" action="Nasdaq/Radar">
+      <Panel title="Latest news" action="Nasdaq / Radar">
         <NewsList items={news.slice(0, 4)} />
       </Panel>
     </div>
@@ -883,11 +888,11 @@ function MarketView({
 
 function MarketChart({ history, mode }: { history: Candle[]; mode: ChartMode }) {
   if (!history.length) {
-    return <div className="chart-empty">Sin historial disponible</div>
+    return <div className="chart-empty">No price history available</div>
   }
   const data = history.slice(-90)
-  if (mode === 'velas') return <CandlestickChart data={data} />
-  if (mode === 'barras') {
+  if (mode === 'candles') return <CandlestickChart data={data} />
+  if (mode === 'bars') {
     return (
       <div className="chart-shell">
         <ResponsiveContainer width="100%" height={280}>
@@ -927,7 +932,7 @@ function CandlestickChart({ data }: { data: Candle[] }) {
 
   return (
     <div className="chart-shell candle-shell">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafico de velas">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Candlestick chart">
         <g className="grid-lines">
           {[0, 1, 2, 3].map((line) => {
             const lineY = padding + line * ((height - padding * 2) / 3)
@@ -967,7 +972,7 @@ function LineSvgChart({ data }: { data: Candle[] }) {
 
   return (
     <div className="chart-shell line-shell">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Grafico de linea">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Line chart">
         <defs>
           <linearGradient id="customLineFill" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
@@ -1031,10 +1036,10 @@ function ScreenerView({
       <div className="view-heading">
         <div>
           <span className="section-label">Stock screener</span>
-          <h1>Buscar acciones con potencial</h1>
-          <p>Filtros tecnicos, fundamentales y descriptivos para investigacion propia.</p>
+          <h1>Find stocks worth researching</h1>
+          <p>Technical, fundamental, and descriptive filters for independent research.</p>
         </div>
-        <div className="risk-note">No es asesoria financiera</div>
+        <div className="risk-note">Not financial advice</div>
       </div>
 
       <section className="filter-panel">
@@ -1047,7 +1052,7 @@ function ScreenerView({
           </select>
         </label>
         <label>
-          Senal
+          Signal
           <select value={signal} onChange={(event) => setSignal(event.target.value)}>
             {SIGNAL_FILTERS.map((item) => (
               <option key={item}>{item}</option>
@@ -1055,7 +1060,7 @@ function ScreenerView({
           </select>
         </label>
         <label>
-          Precio max. {usd(priceMax)}
+          Max price {usd(priceMax)}
           <input type="range" min="10" max="800" step="10" value={priceMax} onChange={(event) => setPriceMax(Number(event.target.value))} />
         </label>
         <label>
@@ -1064,13 +1069,13 @@ function ScreenerView({
         </label>
       </section>
 
-      <div className="screener-table" role="table" aria-label="Screener de acciones">
+      <div className="screener-table" role="table" aria-label="Stock screener">
         <div className="table-row table-head" role="row">
-          <span>Activo</span>
-          <span>Precio</span>
+          <span>Asset</span>
+          <span>Price</span>
           <span>RSI</span>
           <span>P/E</span>
-          <span>Volumen</span>
+          <span>Volume</span>
           <span>Score</span>
           <span></span>
         </div>
@@ -1110,15 +1115,15 @@ function NewsView({ marketNews, symbolNews, selected }: { marketNews: NewsItem[]
       <div className="view-heading">
         <div>
           <span className="section-label">Finance News</span>
-          <h1>Noticias y movimientos</h1>
-          <p>Feed de mercado y titulares vinculados al ticker seleccionado.</p>
+          <h1>News and market moves</h1>
+          <p>Market feed and headlines linked to the selected ticker.</p>
         </div>
       </div>
       <div className="split-grid">
-        <Panel title={`Noticias de ${selected?.symbol ?? 'ticker'}`} action="seleccionado">
+        <Panel title={`${selected?.symbol ?? 'Ticker'} news`} action="selected">
           <NewsList items={symbolNews} />
         </Panel>
-        <Panel title="Mercado general" action="latest">
+        <Panel title="Broad market" action="latest">
           <NewsList items={marketNews} />
         </Panel>
       </div>
@@ -1146,13 +1151,13 @@ function ApiSettingsView({
     <div className="feature-view">
       <div className="view-heading">
         <div>
-          <span className="section-label">Configuracion de proveedores</span>
-          <h1>Proveedores de datos y DeepSeek</h1>
-          <p>Usa variables de entorno siempre que sea posible. El guardado local existe para desarrollo y no devuelve los secretos al navegador.</p>
+          <span className="section-label">Provider settings</span>
+          <h1>Market data and DeepSeek providers</h1>
+          <p>Prefer environment variables. Local storage is available for development and never returns secrets to the browser.</p>
         </div>
         <button className="primary-button" type="button" onClick={() => void saveSettings()} disabled={productBusy}>
           <Save size={17} />
-          Guardar
+          Save
         </button>
       </div>
 
@@ -1174,13 +1179,13 @@ function ApiSettingsView({
                 <input
                   type={field.secret ? 'password' : 'text'}
                   value={field.secret ? form[field.key] : form[field.key] || status?.displayValue || ''}
-                  placeholder={status?.configured ? status.displayValue || 'configurado' : 'No configurado'}
+                  placeholder={status?.configured ? status.displayValue || 'configured' : 'Not configured'}
                   disabled={lockedByEnv}
                   onChange={(event) => setForm({ ...form, [field.key]: event.target.value })}
                 />
               </label>
               <div className="api-setting-foot">
-                <small>{status?.updatedAt ? `Actualizado ${timeAgo(status.updatedAt)}` : lockedByEnv ? 'Definido por variable de entorno' : 'Sin guardar'}</small>
+                <small>{status?.updatedAt ? `Updated ${timeAgo(status.updatedAt)}` : lockedByEnv ? 'Set by environment variable' : 'Not saved'}</small>
                 <button
                   className="secondary-button"
                   type="button"
@@ -1188,7 +1193,7 @@ function ApiSettingsView({
                   onClick={() => void clearSetting(field.key)}
                 >
                   <Trash2 size={15} />
-                  Borrar app
+                  Delete local value
                 </button>
               </div>
             </div>
@@ -1196,11 +1201,11 @@ function ApiSettingsView({
         })}
       </section>
 
-      <Panel title="Reglas de seguridad" action="local">
+      <Panel title="Security rules" action="local">
         <div className="settings-notes">
-          <p>Las variables de entorno tienen prioridad y son la opcion recomendada.</p>
-          <p>Guardar desde la app persiste las claves sin cifrar en la SQLite local, que nunca debe versionarse.</p>
-          <p>Despues de guardar, refresca señales para probar el proveedor nuevo.</p>
+          <p>Environment variables take precedence and are the recommended option.</p>
+          <p>Saving in the app stores keys unencrypted in local SQLite, which must never be committed.</p>
+          <p>After saving, refresh signals to test the new provider.</p>
         </div>
       </Panel>
     </div>
@@ -1254,11 +1259,11 @@ function DecisionDeskView({
         <div>
           <span className="section-label">Decision Desk</span>
           <h1>Buy / Hold / Sell auditable</h1>
-          <p>Señales horarias para horizonte semanas-meses, con datos, modelo, riesgos y journal.</p>
+          <p>Hourly signals for a weeks-to-months horizon, with data lineage, model evidence, risks, and a journal.</p>
         </div>
         <button className="secondary-button" type="button" onClick={() => void refreshSignals()} disabled={productBusy}>
           <RefreshCw size={17} />
-          {productBusy ? 'Actualizando' : 'Refrescar'}
+          {productBusy ? 'Refreshing' : 'Refresh'}
         </button>
       </div>
 
@@ -1275,87 +1280,87 @@ function DecisionDeskView({
               <DecisionBadge action={signal.action} />
             </div>
             <div className="metric-grid">
-              <Metric label="Score combinado" value={signal.decisionGrade ? `${signal.score}/100` : 'Sin señal'} tone={signal.action === 'Buy' ? 'good' : signal.action === 'Sell' ? 'bad' : 'neutral'} />
-              <Metric label="Confianza" value={`${signal.confidence}/100`} />
-              <Metric label="Reglas / ML" value={`${signal.ruleScore}/${signal.mlScore}`} />
-              <Metric label="Fuente" value={`${signal.dataProvider} · ${signal.sourceKind}`} />
+              <Metric label="Combined score" value={signal.decisionGrade ? `${signal.score}/100` : 'No signal'} tone={signal.action === 'Buy' ? 'good' : signal.action === 'Sell' ? 'bad' : 'neutral'} />
+              <Metric label="Confidence" value={`${signal.confidence}/100`} />
+              <Metric label="Rules / ML" value={`${signal.ruleScore}/${signal.mlScore}`} />
+              <Metric label="Source" value={`${signal.dataProvider} · ${signal.sourceKind}`} />
             </div>
             {!signal.decisionGrade ? (
               <div className="data-warning">
                 <ShieldAlert size={18} />
-                <span>{signal.reasonUnavailable ?? 'Datos insuficientes para señal real.'}</span>
+                <span>{signal.reasonUnavailable ?? 'Insufficient data for a decision-grade signal.'}</span>
               </div>
             ) : null}
           </>
         ) : (
-          <p className="empty-copy">Cargando señal para {selectedSymbol}...</p>
+          <p className="empty-copy">Loading signal for {selectedSymbol}...</p>
         )}
       </section>
 
       {signal ? (
         <div className="split-grid">
-          <Panel title="Evidencia" action={signal.modelVersion}>
+          <Panel title="Evidence" action={signal.modelVersion}>
             <EvidenceList evidence={signal.evidence} />
           </Panel>
-          <Panel title="Riesgos visibles" action="perfil agresivo">
+          <Panel title="Visible risks" action="aggressive profile">
             <RiskList risks={signal.risks} />
           </Panel>
         </div>
       ) : null}
 
       {signal?.narrative ? (
-        <Panel title="DeepSeek Pro / Analisis" action={signal.narrative.provider}>
+        <Panel title="DeepSeek Pro / Analysis" action={signal.narrative.provider}>
           <NarrativePanel narrative={signal.narrative} />
         </Panel>
       ) : (
-        <Panel title="Analisis narrativo" action="DeepSeek Pro">
-          <p className="empty-copy">Abre esta pestaña sobre un ticker para generar o cargar el analisis narrativo cacheado.</p>
+        <Panel title="Narrative analysis" action="DeepSeek Pro">
+          <p className="empty-copy">Open this tab on a ticker to generate or load its cached narrative analysis.</p>
         </Panel>
       )}
 
       <div className="split-grid">
-        <Panel title="Journal de decision" action={selectedSymbol}>
+        <Panel title="Decision journal" action={selectedSymbol}>
           <div className="journal-form">
             <label>
-              Tesis
-              <textarea value={thesis} onChange={(event) => setThesis(event.target.value)} placeholder="Por que esta decision tiene sentido" />
+              Thesis
+              <textarea value={thesis} onChange={(event) => setThesis(event.target.value)} placeholder="Why this decision makes sense" />
             </label>
             <label>
-              Invalidacion
-              <textarea value={invalidation} onChange={(event) => setInvalidation(event.target.value)} placeholder="Que dato haria cambiar la decision" />
+              Invalidation
+              <textarea value={invalidation} onChange={(event) => setInvalidation(event.target.value)} placeholder="What evidence would change this decision" />
             </label>
             <label>
-              Nota
-              <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Contexto personal, tamaño de posicion, dudas" />
+              Note
+              <textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Personal context, position size, and open questions" />
             </label>
             <label>
-              Revision
+              Review date
               <input type="date" value={reviewDate} onChange={(event) => setReviewDate(event.target.value)} />
             </label>
             <div className="decision-actions">
               <button className="primary-button" type="button" disabled={!signal || productBusy} onClick={() => void submitDecision('accepted')}>
                 <CheckCircle2 size={17} />
-                Aceptar
+                Accept
               </button>
               <button className="secondary-button" type="button" disabled={!signal || productBusy} onClick={() => void submitDecision('watch')}>
                 <Bell size={17} />
-                Observar
+                Watch
               </button>
               <button className="secondary-button danger-button" type="button" disabled={!signal || productBusy} onClick={() => void submitDecision('rejected')}>
                 <Trash2 size={17} />
-                Rechazar
+                Reject
               </button>
             </div>
           </div>
         </Panel>
 
-        <Panel title="Historial" action={`${selectedJournal.length} entradas`}>
+        <Panel title="History" action={`${selectedJournal.length} entries`}>
           <JournalList items={selectedJournal} />
         </Panel>
       </div>
 
       <div className="split-grid">
-        <Panel title="Top señales" action="decision-grade">
+        <Panel title="Top signals" action="decision-grade">
           <div className="signal-list">
             {topSignals.length ? (
               topSignals.map((item) => (
@@ -1369,16 +1374,16 @@ function DecisionDeskView({
                 </button>
               ))
             ) : (
-              <p className="empty-copy">Sin señales auditables disponibles todavía.</p>
+              <p className="empty-copy">No auditable signals are available yet.</p>
             )}
           </div>
         </Panel>
-        <Panel title="Salud de datos" action={`${dataHealth.filter((item) => item.ok).length}/${dataHealth.length}`}>
+        <Panel title="Data health" action={`${dataHealth.filter((item) => item.ok).length}/${dataHealth.length}`}>
           <DataHealthList providers={dataHealth} />
         </Panel>
       </div>
 
-      <Panel title="Cartera real" action={portfolioValueLabel(portfolio)}>
+      <Panel title="Imported portfolio" action={portfolioValueLabel(portfolio)}>
         <RealPortfolioSummary portfolio={portfolio} />
       </Panel>
     </div>
@@ -1413,11 +1418,11 @@ function PortfolioView({
       <div className="view-heading">
         <div>
           <span className="section-label">Portfolio tracker</span>
-          <h1>Cartera simulada</h1>
-          <p>Posiciones, efectivo y P&L marcados con las cotizaciones disponibles.</p>
+          <h1>Portfolio workspace</h1>
+          <p>Positions, cash, and P&amp;L marked against the best available quotes.</p>
         </div>
       </div>
-      <Panel title="Cartera real" action={portfolioValueLabel(realPortfolio)}>
+      <Panel title="Imported portfolio" action={portfolioValueLabel(realPortfolio)}>
         <div className="portfolio-import">
           <label>
             CSV: symbol,qty,avgPrice
@@ -1425,16 +1430,16 @@ function PortfolioView({
           </label>
           <button className="primary-button" type="button" disabled={productBusy} onClick={() => void importPortfolio()}>
             <FileUp size={17} />
-            Importar cartera real
+            Import portfolio
           </button>
         </div>
         <RealPortfolioSummary portfolio={realPortfolio} />
       </Panel>
       <div className="metric-grid">
         <Metric label="Equity" value={usd(portfolio.equity)} tone="good" />
-        <Metric label="Efectivo" value={usd(cash)} />
-        <Metric label="Invertido" value={usd(portfolio.marketValue)} />
-        <Metric label="Posiciones" value={`${portfolio.positions.length}`} />
+        <Metric label="Cash" value={usd(cash)} />
+        <Metric label="Invested" value={usd(portfolio.marketValue)} />
+        <Metric label="Positions" value={`${portfolio.positions.length}`} />
       </div>
       <div className="position-list">
         {portfolio.positions.map((position) => (
@@ -1443,7 +1448,7 @@ function PortfolioView({
             <span>
               <strong>{position.symbol}</strong>
               <small>
-                {number(position.qty, 2)} acciones @ {usd(position.avgPrice)}
+                {number(position.qty, 2)} shares @ {usd(position.avgPrice)}
               </small>
             </span>
             <span>
@@ -1487,17 +1492,17 @@ function PaperTradingView({
       <div className="view-heading">
         <div>
           <span className="section-label">Paper trading</span>
-          <h1>Simulador de bolsa</h1>
-          <p>Practica compras y ventas ilimitadas sin usar dinero real.</p>
+          <h1>Market simulator</h1>
+          <p>Practice unlimited buys and sells without using real money.</p>
         </div>
         <button className="secondary-button" type="button" onClick={resetPaper}>
-          Reiniciar
+          Reset
         </button>
       </div>
 
       <div className="trade-ticket">
         <div>
-          <span>Orden</span>
+          <span>Order</span>
           <strong>
             {selected?.symbol ?? DEFAULT_SYMBOL} @ {selected ? usd(selected.price) : '--'}
           </strong>
@@ -1510,22 +1515,22 @@ function PaperTradingView({
           ))}
         </div>
         <label>
-          Cantidad
+          Quantity
           <input value={orderQty} onChange={(event) => setOrderQty(event.target.value)} inputMode="decimal" />
         </label>
         <button className="primary-button" type="button" onClick={submitTrade}>
-          Ejecutar paper trade
+          Execute paper trade
         </button>
       </div>
 
       <div className="metric-grid">
-        <Metric label="Efectivo" value={usd(paper.cash)} />
+        <Metric label="Cash" value={usd(paper.cash)} />
         <Metric label="Equity" value={usd(portfolio.equity)} tone="good" />
-        <Metric label="Invertido" value={usd(portfolio.marketValue)} />
+        <Metric label="Invested" value={usd(portfolio.marketValue)} />
         <Metric label="Trades" value={`${paper.trades.length}`} />
       </div>
 
-      <Panel title="Historial" action="local">
+      <Panel title="Trade history" action="local">
         <div className="trade-list">
           {paper.trades.slice(0, JOURNAL_PREVIEW_LIMIT).map((trade) => (
             <div key={trade.id}>
@@ -1537,7 +1542,7 @@ function PaperTradingView({
               <small>{timeAgo(trade.createdAt)}</small>
             </div>
           ))}
-          {!paper.trades.length ? <p className="empty-copy">Sin operaciones todavia.</p> : null}
+          {!paper.trades.length ? <p className="empty-copy">No trades yet.</p> : null}
         </div>
       </Panel>
     </div>
@@ -1549,7 +1554,7 @@ function DecisionBadge({ action, compact = false }: { action: SignalRun['action'
 }
 
 function SignalMini({ signal }: { signal: SignalRun | null }) {
-  if (!signal) return <p className="empty-copy">Sin señal cargada.</p>
+  if (!signal) return <p className="empty-copy">No signal loaded.</p>
   return (
     <div className="signal-mini">
       <div className="idea-top">
@@ -1560,18 +1565,18 @@ function SignalMini({ signal }: { signal: SignalRun | null }) {
         </span>
         <DecisionBadge action={signal.action} compact />
       </div>
-      <p>{signal.decisionGrade ? `Score ${signal.score}/100 con confianza ${signal.confidence}/100.` : signal.reasonUnavailable}</p>
+      <p>{signal.decisionGrade ? `Score ${signal.score}/100 with ${signal.confidence}/100 confidence.` : signal.reasonUnavailable}</p>
       <div className="scenario-bars signal-bars">
-        <span style={{ width: `${Math.max(12, signal.ruleScore)}%` }}>Reglas</span>
+        <span style={{ width: `${Math.max(12, signal.ruleScore)}%` }}>Rules</span>
         <span style={{ width: `${Math.max(12, signal.mlScore)}%` }}>ML</span>
-        <span style={{ width: `${Math.max(12, signal.confidence)}%` }}>Confianza</span>
+        <span style={{ width: `${Math.max(12, signal.confidence)}%` }}>Confidence</span>
       </div>
     </div>
   )
 }
 
 function EvidenceList({ evidence }: { evidence: SignalEvidence[] }) {
-  if (!evidence.length) return <p className="empty-copy">Sin evidencia disponible.</p>
+  if (!evidence.length) return <p className="empty-copy">No evidence available.</p>
   return (
     <div className="evidence-list">
       {evidence.map((item) => (
@@ -1588,7 +1593,7 @@ function EvidenceList({ evidence }: { evidence: SignalEvidence[] }) {
 }
 
 function RiskList({ risks }: { risks: SignalRisk[] }) {
-  if (!risks.length) return <p className="empty-copy">Sin riesgos calculados.</p>
+  if (!risks.length) return <p className="empty-copy">No calculated risks.</p>
   return (
     <div className="risk-list">
       {risks.map((risk) => (
@@ -1627,7 +1632,7 @@ function NarrativePanel({ narrative }: { narrative: NonNullable<SignalRun['narra
         </div>
       </div>
       <div>
-        <h3>Vigilar</h3>
+        <h3>Watch</h3>
         <ul>
           {narrative.watchItems.map((item) => (
             <li key={item}>{item}</li>
@@ -1639,7 +1644,7 @@ function NarrativePanel({ narrative }: { narrative: NonNullable<SignalRun['narra
 }
 
 function JournalList({ items }: { items: DecisionJournalEntry[] }) {
-  if (!items.length) return <p className="empty-copy">Sin decisiones guardadas para este ticker.</p>
+  if (!items.length) return <p className="empty-copy">No saved decisions for this ticker.</p>
   return (
     <div className="journal-list">
       {items.slice(0, JOURNAL_PREVIEW_LIMIT).map((item) => (
@@ -1647,7 +1652,7 @@ function JournalList({ items }: { items: DecisionJournalEntry[] }) {
           <span className={`journal-status ${item.userDecision}`}>{decisionLabel(item.userDecision)}</span>
           <strong>{item.signalAction}</strong>
           <small>{timeAgo(item.createdAt)}</small>
-          <p>{item.thesis || item.note || 'Sin nota.'}</p>
+          <p>{item.thesis || item.note || 'No note.'}</p>
         </div>
       ))}
     </div>
@@ -1655,13 +1660,13 @@ function JournalList({ items }: { items: DecisionJournalEntry[] }) {
 }
 
 function decisionLabel(decision: JournalDecision) {
-  if (decision === 'accepted') return 'Aceptada'
-  if (decision === 'rejected') return 'Rechazada'
-  return 'Observando'
+  if (decision === 'accepted') return 'Accepted'
+  if (decision === 'rejected') return 'Rejected'
+  return 'Watching'
 }
 
 function DataHealthList({ providers }: { providers: ProviderStatus[] }) {
-  if (!providers.length) return <p className="empty-copy">Aun no hay lecturas de proveedores.</p>
+  if (!providers.length) return <p className="empty-copy">No provider readings yet.</p>
   return (
     <div className="data-health-list">
       {providers.map((provider) => (
@@ -1671,7 +1676,7 @@ function DataHealthList({ providers }: { providers: ProviderStatus[] }) {
             <strong>{provider.provider}</strong>
             <small>{provider.market} · {provider.sourceKind}</small>
           </span>
-          <b>{provider.ok ? 'OK' : 'Fallo'}</b>
+          <b>{provider.ok ? 'OK' : 'Failed'}</b>
         </div>
       ))}
     </div>
@@ -1683,16 +1688,16 @@ function moneyByCurrency(value: number, currency: 'USD' | 'MXN') {
 }
 
 function portfolioValueLabel(portfolio: PortfolioSummary | null) {
-  if (!portfolio || !portfolio.positions.length) return 'sin importar'
+  if (!portfolio || !portfolio.positions.length) return 'not imported'
   if (portfolio.currencyTotals.length === 1) {
     const total = portfolio.currencyTotals[0]
     return moneyByCurrency(total.marketValue, total.currency)
   }
-  return `${portfolio.currencyTotals.length} monedas`
+  return `${portfolio.currencyTotals.length} currencies`
 }
 
 function RealPortfolioSummary({ portfolio }: { portfolio: PortfolioSummary | null }) {
-  if (!portfolio || !portfolio.positions.length) return <p className="empty-copy">Importa una cartera real para ver riesgo de concentracion y P&L.</p>
+  if (!portfolio || !portfolio.positions.length) return <p className="empty-copy">Import a portfolio to review concentration risk and P&amp;L.</p>
   return (
     <>
       <div className="currency-total-list">
@@ -1723,7 +1728,7 @@ function RealPortfolioSummary({ portfolio }: { portfolio: PortfolioSummary | nul
 }
 
 function NewsList({ items, compactMode = false }: { items: NewsItem[]; compactMode?: boolean }) {
-  if (!items.length) return <p className="empty-copy">Sin noticias disponibles.</p>
+  if (!items.length) return <p className="empty-copy">No news available.</p>
   return (
     <div className={compactMode ? 'news-list compact-news' : 'news-list'}>
       {items.map((item) => (
@@ -1753,22 +1758,22 @@ function IdeaCard({ row }: { row: ScreenerRow }) {
         <b>{row.signal}</b>
       </div>
       <p>
-        El modelo educativo marca {row.symbol} con score {row.score}/100 por momentum de {percent(row.performance1M)}, RSI{' '}
-        {number(row.rsi, 1)} y consenso relativo de analistas.
+        The educational model scores {row.symbol} at {row.score}/100 using {percent(row.performance1M)} momentum, an RSI of{' '}
+        {number(row.rsi, 1)}, and relative analyst consensus.
       </p>
       <div className="scenario-bars">
-        <span style={{ width: `${Math.min(92, row.score)}%` }}>Caso base</span>
+        <span style={{ width: `${Math.min(92, row.score)}%` }}>Base case</span>
         <span style={{ width: `${Math.max(18, row.socialScore)}%` }}>Social</span>
-        <span style={{ width: `${Math.max(20, row.analystScore)}%` }}>Analistas</span>
+        <span style={{ width: `${Math.max(20, row.analystScore)}%` }}>Analysts</span>
       </div>
-      <small className="disclaimer">Herramienta educativa. No considera tu situacion financiera personal.</small>
+      <small className="disclaimer">Educational tool. It does not account for your personal financial situation.</small>
     </div>
   )
 }
 
 function BreadthChart({ breadth }: { breadth?: Snapshot['breadth'] }) {
   const buckets = breadth?.buckets ?? []
-  if (!buckets.length) return <p className="empty-copy">Sin amplitud disponible.</p>
+  if (!buckets.length) return <p className="empty-copy">No market breadth data available.</p>
   const max = Math.max(...buckets.map((bucket) => bucket.count), 1)
   return (
     <div className="breadth-chart">
