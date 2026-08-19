@@ -875,6 +875,12 @@ input[type='range'] {
   justify-content: flex-start;
 }
 
+.idea-top > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 .idea-top b {
   margin-left: auto;
   border-radius: 7px;

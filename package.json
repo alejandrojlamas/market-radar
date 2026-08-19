@@ -1,7 +1,16 @@
 {
-  "name": "mercadoradar",
+  "name": "market-radar",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Local-first applied-AI lab for explainable market research and decision journaling.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alejandrojlamas/market-radar.git"
+  },
+  "homepage": "https://github.com/alejandrojlamas/market-radar#readme",
+  "bugs": {
+    "url": "https://github.com/alejandrojlamas/market-radar/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",

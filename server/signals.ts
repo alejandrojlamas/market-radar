@@ -145,12 +145,12 @@ function scoreWindow(profile: EquityProfile, bars: OhlcvBar[]) {
   const evidence = [
     ruleContribution('Momentum 1M', `${round(performance1M, 1)}%`, clamp(performance1M * 1.1, -15, 20)),
     ruleContribution('Momentum 3M', `${round(performance3M, 1)}%`, clamp(performance3M * 0.42, -12, 20)),
-    ruleContribution('Tendencia SMA50/200', price > sma50 && price > sma200 ? 'arriba' : 'mixta/debil', trend * 4),
+    ruleContribution('SMA50/200 trend', price > sma50 && price > sma200 ? 'above' : 'mixed/weak', trend * 4),
     ruleContribution('RSI', `${round(rsi, 1)}`, rsi >= 45 && rsi <= 72 ? 8 : rsi > 82 ? -10 : rsi < 35 ? -4 : 2),
     ruleContribution('Drawdown 52W', `${round(drawdown52W, 1)}%`, drawdown52W > -10 ? 8 : drawdown52W < -25 ? -12 : -2),
-    ruleContribution('Beta agresiva', `${round(profile.beta, 2)}`, profile.beta > 2.2 ? -5 : profile.beta > 1.6 ? -2 : 2),
-    ruleContribution('Fundamentales', profile.pe ? `P/E ${round(profile.pe, 1)}` : 'sin P/E', profile.pe && profile.pe < 45 ? 5 : profile.pe && profile.pe > 90 ? -8 : 0),
-    ruleContribution('ROE/deuda', `ROE ${profile.roe ? round(profile.roe * 100, 1) : 0}%`, (profile.roe && profile.roe > 0.15 ? 5 : profile.roe && profile.roe < 0 ? -8 : 0) + (profile.debtEquity !== null && profile.debtEquity < 1 ? 3 : 0)),
+    ruleContribution('Aggressive beta', `${round(profile.beta, 2)}`, profile.beta > 2.2 ? -5 : profile.beta > 1.6 ? -2 : 2),
+    ruleContribution('Fundamentals', profile.pe ? `P/E ${round(profile.pe, 1)}` : 'no P/E', profile.pe && profile.pe < 45 ? 5 : profile.pe && profile.pe > 90 ? -8 : 0),
+    ruleContribution('ROE / debt', `ROE ${profile.roe ? round(profile.roe * 100, 1) : 0}%`, (profile.roe && profile.roe > 0.15 ? 5 : profile.roe && profile.roe < 0 ? -8 : 0) + (profile.debtEquity !== null && profile.debtEquity < 1 ? 3 : 0)),
   ]
   const ruleScore = clamp(50 + evidence.reduce((sum, item) => sum + item.contribution, 0), 1, 99)
   const mlScore = mlScoreFromFeatures({
@@ -210,13 +210,13 @@ function risks(profile: EquityProfile, score: ReturnType<typeof scoreWindow>, po
   const currentPosition = positions.find((position) => position.symbol === profile.symbol)
   const items: SignalRisk[] = [
     {
-      label: 'Volatilidad 63D',
-      value: `${round(score.volatility63D, 1)}% anualizada`,
+      label: '63D volatility',
+      value: `${round(score.volatility63D, 1)}% annualized`,
       severity: score.volatility63D > 45 ? 'high' : score.volatility63D > 28 ? 'medium' : 'low',
     },
     {
       label: 'Drawdown',
-      value: `${round(score.drawdown52W, 1)}% vs max 52W`,
+      value: `${round(score.drawdown52W, 1)}% vs. 52W high`,
       severity: score.drawdown52W < -30 ? 'high' : score.drawdown52W < -15 ? 'medium' : 'low',
     },
     {
@@ -227,8 +227,8 @@ function risks(profile: EquityProfile, score: ReturnType<typeof scoreWindow>, po
   ]
   if (currentPosition) {
     items.push({
-      label: 'Exposicion existente',
-      value: `${round(currentPosition.qty, 2)} acciones en cartera`,
+      label: 'Existing exposure',
+      value: `${round(currentPosition.qty, 2)} shares in portfolio`,
       severity: 'medium',
     })
   }
@@ -278,7 +278,7 @@ function unavailableSignal(profile: EquityProfile, history: MarketHistory, reaso
       volatility63D: 0,
     },
     evidence: [],
-    risks: [{ label: 'Calidad de datos', value: reason, severity: 'high' }],
+    risks: [{ label: 'Data quality', value: reason, severity: 'high' }],
     backtest: { sampleSize: 0, hitRate: 0, averageForwardReturn: 0, benchmarkReturn: 0 },
   }
 }
@@ -288,7 +288,7 @@ export function buildSignalFromHistory(profile: EquityProfile, history: MarketHi
     return unavailableSignal(
       profile,
       history,
-      history.warning ?? `Datos ${history.sourceKind}/${history.provider} no cumplen calidad para decision real.`,
+      history.warning ?? `${history.sourceKind}/${history.provider} data does not meet decision-grade quality requirements.`,
     )
   }
   const asset = normalizeAsset(profile)
@@ -386,8 +386,8 @@ function localNarrative(signal: SignalRun): SignalNarrative {
     generatedAt: new Date().toISOString(),
     summary:
       signal.action === 'No Signal'
-        ? `No hay señal accionable para ${signal.symbol} porque la calidad de datos no es suficiente.`
-        : `${signal.symbol} queda en ${signal.action} con score ${signal.score}/100 y confianza ${signal.confidence}/100.`,
+        ? `No actionable signal is available for ${signal.symbol} because data quality is insufficient.`
+        : `${signal.symbol} is rated ${signal.action} with a ${signal.score}/100 score and ${signal.confidence}/100 confidence.`,
     bullCase: signal.evidence.filter((item) => item.tone === 'positive').slice(0, 3).map((item) => `${item.label}: ${item.value}`),
     bearCase: signal.evidence.filter((item) => item.tone === 'negative').slice(0, 3).map((item) => `${item.label}: ${item.value}`),
     watchItems: signal.risks.map((item) => `${item.label}: ${item.value}`),
@@ -404,7 +404,7 @@ async function deepSeekNarrative(signal: SignalRun): Promise<SignalNarrative> {
       {
         role: 'system',
         content:
-          'Eres analista financiero para una herramienta personal. Devuelve solo JSON valido con summary, bullCase, bearCase y watchItems. No digas que el usuario debe comprar o vender sin mencionar riesgos.',
+          'You are a financial analyst for a personal research tool. Return valid JSON only, with summary, bullCase, bearCase, and watchItems. Never tell the user to buy or sell without describing the risks.',
       },
       {
         role: 'user',
@@ -483,7 +483,7 @@ export function importPortfolioCsv(csv: string) {
   const qtyIndex = header.indexOf('qty')
   const avgIndex = header.indexOf('avgprice') >= 0 ? header.indexOf('avgprice') : header.indexOf('avg_price')
   if (symbolIndex < 0 || qtyIndex < 0 || avgIndex < 0) {
-    throw new Error('CSV requerido: symbol,qty,avgPrice')
+    throw new Error('Required CSV columns: symbol,qty,avgPrice')
   }
   const profiles = new Map(EQUITY_CATALOG.map((profile) => [profile.symbol, normalizeAsset(profile)]))
   const updatedAt = new Date().toISOString()
@@ -491,11 +491,11 @@ export function importPortfolioCsv(csv: string) {
     const parts = line.split(',').map((item) => item.trim())
     const symbol = parts[symbolIndex].toUpperCase()
     const profile = profiles.get(symbol)
-    if (!profile) throw new Error(`Activo no soportado: ${symbol}`)
+    if (!profile) throw new Error(`Unsupported asset: ${symbol}`)
     const qty = Number(parts[qtyIndex])
     const avgPrice = Number(parts[avgIndex])
     if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(avgPrice) || avgPrice <= 0) {
-      throw new Error(`Posicion invalida: ${symbol}`)
+      throw new Error(`Invalid position: ${symbol}`)
     }
     return {
       symbol,
@@ -527,7 +527,7 @@ export function createDecision(input: {
   reviewDate?: string
 }) {
   const signal = readSignal(input.symbol.toUpperCase())
-  if (!signal) throw new Error(`No hay señal para ${input.symbol}`)
+  if (!signal) throw new Error(`No signal is available for ${input.symbol}`)
   const entry: DecisionJournalEntry = {
     id: randomUUID(),
     symbol: signal.symbol,
